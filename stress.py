@@ -145,14 +145,15 @@ def stress_majorization_1d(dist_matrix, max_iter=1000, tol=1e-4):
 
 start = time.time()
 # --- データ読み込みと前処理 ---
-problem_name = 'RWMOP26'
+problem_name = 'RWMOP22'
 algo = 'data'
 domain_df = pd.read_csv('domain_info.csv')
 row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 lower = np.array([float(v) for v in row['lower'].split(",")])
 upper = np.array([float(v) for v in row['upper'].split(",")])
 diff = upper - lower
-data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+#data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+data = pd.read_csv(f'data09-20-pre/local_search{problem_name}.csv')
 
 # 各制約違反値の計算（複数のCon_がある場合は0以上の和をとる）
 con_cols = [c for c in data.columns if c.startswith('Con_')]
@@ -197,7 +198,7 @@ X_all = np.array([G.nodes[n]['X'] for n in nodes])
 X_all_norm = (X_all - lower) / diff
 # --- 設計変数に基づくユークリッド距離行列 ---
 dist_matrix = pairwise_distances(X_all_norm, metric='euclidean')
-
+'''
 # --- グラフ構造に基づく隣接集合の作成 ---
 # ここでは、グラフ G の全ノードをリストにして一貫して扱います
 nodes = list(G.nodes())
@@ -222,9 +223,9 @@ for i, node_i in enumerate(nodes):
         # 対称性を持たせて距離行列に代入
         weighted_dist[i, j] = d
         weighted_dist[j, i] = d# （同じ計算が重複していた箇所は整理済み）
-
+'''
 # --- 疎なペアリストの作成 ---
-sparse_pairs = make_sparse_pairs(X_all_norm, num_pivots=20, k_neigh=5)
+#sparse_pairs = make_sparse_pairs(X_all_norm, num_pivots=20, k_neigh=5)
 
 # --- Stress Majorization で1次元座標の決定 ---
 # ここではユークリッド距離行列 dist_matrix を用いているが，
@@ -257,7 +258,7 @@ log_formatter = ticker.LogFormatterSciNotation(base=10)
 ax.yaxis.set_major_formatter(log_formatter)
 ax.tick_params(axis='y', which='both', labelleft=True)
 ax.axis('on')
-plt.ylim(bottom=-1e-6, top=1e1)
+plt.ylim(bottom=-1e-6, top=1e5)
 plt.show()
 end = time.time()  # 現在時刻（処理完了後）を取得
 time_diff = end - start  # 処理完了後の時刻から処理開始前の時刻を減算する
