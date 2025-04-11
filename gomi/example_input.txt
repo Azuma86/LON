@@ -1,0 +1,3 @@
+Run Fitness Solution Fitness Next_Solution
+1 191 1_5 173 1_4
+1 173 1_4 9.637130e-03 1_6
