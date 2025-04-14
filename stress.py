@@ -3,119 +3,106 @@ import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
 from sklearn.metrics import pairwise_distances
-from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
 import matplotlib.ticker as ticker
 from sklearn.neighbors import NearestNeighbors
-from scipy.sparse.linalg import cg  # 共役勾配法をインポート
 import time
+from random import random
+from networkx import floyd_warshall_numpy
+import numpy as np
+from scipy.sparse import csr_matrix
+from scipy.sparse.linalg import cg
 # プロット用のフォント設定
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
 
-def stress_majorization_1d_sparse(dist_matrix, pairs, max_iter=100, tol=1e-4, x0=None):
+def inv(x):
+    if x < 1e-5:
+        return 0.0
+    return 1 / x
+
+
+def stress(X, D):
     """
-    1次元における疎なStress Majorizationアルゴリズム（論文 "Graph Drawing by Stress Majorization" に基づく）
-    ・入力:
-      - dist_matrix: 各ノード間の理想距離行列（ここでは正規化済みのユークリッド距離など）
-      - pairs: 疎なペア集合（ピボット＋k近傍に基づくペア）
-      - max_iter, tol: 反復の最大回数，収束判定の閾値
-      - x0: 初期解（与えなければ乱数初期化）
+    X: (n, 1) 配列、各ノードの1次元座標
+    D: (n, n) ターゲット距離行列
     """
-    N = dist_matrix.shape[0]
+    n = len(X)
+    s = 0.0
+    for i in range(n):
+        x_i = X[i, 0]  # 1次元なのでスカラー
+        for j in range(i):
+            x_j = X[j, 0]
+            d = abs(x_i - x_j) - D[i, j]
+            s += d * d
+    return s
+
+
+def stress_majorization(graph):
     epsilon = 1e-10
-    # ゼロ除算防止のための下限
-    dist_matrix = np.maximum(dist_matrix, epsilon)
-    if x0 is None:
-        x = np.random.rand(N)
-    else:
-        x = x0.copy()
+    n = graph.number_of_nodes()
 
-    # --- 重みと理想距離の辞書作成 (論文の式(1)に対応) ---
-    W = {}
-    D = {}
-    for i, j in pairs:
-        dij = dist_matrix[i, j]
-        wij = 1.0 / (dij ** 1 + epsilon)
-        W[(i, j)] = wij
-        D[(i, j)] = dij
+    # ノード間の最短経路距離行列 D を算出
+    D = floyd_warshall_numpy(graph)
 
-    # --- 定数ラプラシアン Lw の事前計算 (論文の式(4)) ---
-    Lw = np.zeros((N, N))
-    for (i, j), w in W.items():
-        Lw[i, j] -= w
-        Lw[j, i] -= w
-        Lw[i, i] += w
-        Lw[j, j] += w
+    # 重み行列 w, および補正項 delta を計算
+    w = np.zeros((n, n))
+    delta = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i):
+            w[i, j] = w[j, i] = D[i, j] ** -2
+            delta[i, j] = delta[j, i] = w[i, j] * D[i, j]
 
-    # --- 反復によるストレス最小化 ---
-    for iteration in range(max_iter):
-        # 現在の配置 x に基づきB行列（微分項に対応）を更新
-        B = np.zeros((N, N))
-        for i, j in pairs:
-            diff = x[i] - x[j]
-            norm_val = np.abs(diff) + epsilon
-            w = W[(i, j)]
-            d = D[(i, j)]
-            # 各ペアの勾配項：ノード j からの "投票"として b_ij = w * d * sign(diff)
-            b_ij = w * d * diff / norm_val
-            B[i, j] -= b_ij
-            B[j, i] += b_ij
-            B[i, i] += b_ij
-            B[j, j] -= b_ij
+    # 初期配置 Z (1次元配列: shape (n, 1))
+    Z = np.random.rand(n, 1)
+    # ノード0を (0,) に固定（平行移動不変性の除去）
+    Z[0, 0] = 0.0
 
-        # 線形システムの解法：Lw は定数，B は x に依存するため，式 Lw * x_new = B * x を解く
-        #x_new = spsolve(csr_matrix(Lw), B @ x)
-        x_new, info = cg(csr_matrix(Lw), B @ x, atol=tol)
-        # 翻訳不変性除去のため，新しい配置から平均値を引く
-        x_new = x_new - np.mean(x_new)
+    # 重み付きラプラシアン L_w の計算
+    L_w = np.zeros((n, n))
+    for i in range(n):
+        for j in range(i):
+            L_w[i, j] = L_w[j, i] = -w[i, j]
+    for i in range(n):
+        L_w[i, i] = -sum(L_w[i, :])
 
-        # stress の計算（論文の式(1)）
-        stress = 0.0
-        for i, j in pairs:
-            stress += 0.5 * W[(i, j)] * (np.abs(x_new[i] - x_new[j]) - D[(i, j)]) ** 2
+    # 初期ストレスの評価
+    e0 = stress(Z, D)
 
-        if np.linalg.norm(x_new - x) / (np.linalg.norm(x) + epsilon) < tol:
-            print(f"Converged after {iteration + 1} iterations, stress = {stress:.4e}")
-            return x_new
-        x = x_new
+    # 反復更新
+    while True:
+        # 補助ラプラシアン L_Z の構築
+        L_Z = np.zeros((n, n))
+        for i in range(n):
+            for j in range(i):
+                # 1次元の場合、Z[i]-Z[j] はスカラーなので abs() で距離を計算
+                L_Z[i, j] = L_Z[j, i] = -delta[i, j] * inv(abs(Z[i, 0] - Z[j, 0]))
+        for i in range(n):
+            L_Z[i, i] = -sum(L_Z[i, :])
 
-    print(f"Max iterations reached, final stress = {stress:.4e}")
-    return x
+        # 更新：ノード0は固定なので、ノード1以降の座標のみ更新
+        # 連立方程式 L_w_reduced * x_new = (L_Z @ Z) から解く
+        rhs = (L_Z @ Z[:, 0])[1:]
+        x_new_reduced, info = cg(L_w[1:, 1:], rhs, atol=epsilon)
+        if info != 0:
+            print(f"CG did not converge, info = {info}")
+        Z[1:, 0] = x_new_reduced
 
+        # 新たなストレスを計算して収束判定
+        e = stress(Z, D)
+        if (e0 - e) / e0 < epsilon:
+            break
+        e0 = e
 
-def make_sparse_pairs(X, num_pivots=10, k_neigh=5):
-    """
-    ピボットベース＋k近傍により疎なノードペア集合を作成する関数
-    （論文セクション4 "Sparse Stress Functions" に準拠）
-    """
-    N = X.shape[0]
-    pivots_idx = np.random.choice(N, num_pivots, replace=False)
-    pairs = set()
-
-    # ① ピボットとその他の全ノードとのペア
-    for pi in pivots_idx:
-        for j in range(N):
-            if pi != j:
-                pairs.add((min(pi, j), max(pi, j)))
-
-    # ② 各ノードの k-近傍同士のペアを追加
-    nn = NearestNeighbors(n_neighbors=k_neigh + 1).fit(X)
-    distances, indices = nn.kneighbors(X)
-    for i in range(N):
-        for j in indices[i][1:]:
-            pairs.add((min(i, j), max(i, j)))
-
-    return list(pairs)
-
+    return Z
 
 def stress_majorization_1d(dist_matrix, max_iter=1000, tol=1e-4):
     """
     全ペアを使用する従来型の1次元Stress Majorization（比較用）
     """
     N = dist_matrix.shape[0]
-    epsilon = 1e-10
+    epsilon = 1e-20
     dist_matrix = np.maximum(dist_matrix, epsilon)
     W = 1.0 / dist_matrix ** 1
     #W = np.ones(dist_matrix.shape)
@@ -145,7 +132,7 @@ def stress_majorization_1d(dist_matrix, max_iter=1000, tol=1e-4):
 
 start = time.time()
 # --- データ読み込みと前処理 ---
-problem_name = 'RWMOP22'
+problem_name = 'RWMOP6'
 algo = 'data'
 domain_df = pd.read_csv('domain_info.csv')
 row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
@@ -194,44 +181,15 @@ for vec, node_list in vec2nodes.items():
             G.remove_node(dup)
 
 nodes = list(G.nodes())
+a = nx.number_of_nodes(G)
+print(a)
+
 X_all = np.array([G.nodes[n]['X'] for n in nodes])
 X_all_norm = (X_all - lower) / diff
 # --- 設計変数に基づくユークリッド距離行列 ---
 dist_matrix = pairwise_distances(X_all_norm, metric='euclidean')
-'''
-# --- グラフ構造に基づく隣接集合の作成 ---
-# ここでは、グラフ G の全ノードをリストにして一貫して扱います
-nodes = list(G.nodes())
-neighbors = {node: set(G.predecessors(node)) | set(G.successors(node)) for node in nodes}
-
-# --- 重み付き距離行列の計算 ---
-num_nodes = len(nodes)
-weighted_dist = np.zeros((num_nodes, num_nodes))
-for i, node_i in enumerate(nodes):
-    for j in range(i + 1, num_nodes):
-        # ノードi, jそれぞれの隣接集合を取得
-        ni = neighbors[node_i]
-        nj = neighbors[nodes[j]]
-        # 和集合と積集合のサイズを計算
-        union_size = len(ni | nj)
-        inter_size = len(ni & nj)
-        # 距離は和集合の要素数から積集合の要素数を引いた値
-        d = union_size - inter_size
-        # ゼロ距離になった場合は小さな値に置換（数値計算上の安定性のため）
-        if d == 0:
-            d = 1e-6
-        # 対称性を持たせて距離行列に代入
-        weighted_dist[i, j] = d
-        weighted_dist[j, i] = d# （同じ計算が重複していた箇所は整理済み）
-'''
-# --- 疎なペアリストの作成 ---
-#sparse_pairs = make_sparse_pairs(X_all_norm, num_pivots=20, k_neigh=5)
-
-# --- Stress Majorization で1次元座標の決定 ---
-# ここではユークリッド距離行列 dist_matrix を用いているが，
-# 必要に応じ weighted_dist への切替も可能
-#x_coords = stress_majorization_1d_sparse(dist_matrix, sparse_pairs)
-x_coords = stress_majorization_1d(dist_matrix)
+#x_coords = stress_majorization_1d(dist_matrix)
+x_coords = stress_majorization(G)
 
 # --- 可視化 ---
 pos = {n: (x_coords[i], G.nodes[n]['CV']) for i, n in enumerate(nodes)}
