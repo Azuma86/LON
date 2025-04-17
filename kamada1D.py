@@ -9,18 +9,18 @@ import matplotlib.ticker as ticker
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
-problem_name = 'RWMOP20'
+problem_name = 'RWMOP1'
 algo = 'data'
+if 'RWMOP0' in problem_name == 1:
+    domain_df = pd.read_csv('domain_info.csv')
 
-domain_df = pd.read_csv('domain_info.csv')
+    # 指定した問題名の行を取得
+    row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 
-# 指定した問題名の行を取得
-row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
-
-# lower, upper を配列化 (スペース区切りを float に変換)
-lower = np.array([float(v) for v in row['lower'].split(",")])
-upper = np.array([float(v) for v in row['upper'].split(",")])
-diff = upper - lower
+    # lower, upper を配列化 (スペース区切りを float に変換)
+    lower = np.array([float(v) for v in row['lower'].split(",")])
+    upper = np.array([float(v) for v in row['upper'].split(",")])
+    diff = upper - lower
 # =============================
 # 1. CSVファイルの読み込みと前処理
 # =============================
@@ -90,9 +90,10 @@ X_all = np.array([G.nodes[n]['X'] for n in nodes])
 N = len(nodes)
 
 #正規化
-X_all_norm = (X_all - lower) / diff
+if 'RWMOP0' in problem_name == 1:
+    X_all = (X_all - lower) / diff
 
-dist_matrix = pairwise_distances(X_all_norm, metric='euclidean')
+dist_matrix = pairwise_distances(X_all, metric='euclidean')
 epsilon = 1e-10
 dist_matrix[dist_matrix < epsilon] = epsilon
 
@@ -178,7 +179,7 @@ ax.tick_params(axis='y', which='both', labelleft=True)
 
 ax.axis('on')
 plt.ylim(bottom=-1e-6)
-plt.ylim(top=1e13)
+plt.ylim(top=1e1)
 plt.subplots_adjust(left=0.2, right=0.95, top=0.95, bottom=0.05)
 
 plt.show()
