@@ -10,21 +10,21 @@ from sklearn.manifold import MDS
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
-problem_name = 'RWMOP22'
+problem_name = 'RWMOP0'
 algo = 'data'
+if problem_name != 'RWMOP0':
+    domain_df = pd.read_csv('domain_info.csv')
+    # 指定した問題名の行を取得
+    row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
+    lower = np.array([float(v) for v in row['lower'].split(",")])
+    upper = np.array([float(v) for v in row['upper'].split(",")])
+    diff = upper - lower
 
-domain_df = pd.read_csv('domain_info.csv')
-# 指定した問題名の行を取得
-row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
-
-lower = np.array([float(v) for v in row['lower'].split(",")])
-upper = np.array([float(v) for v in row['upper'].split(",")])
-diff = upper - lower
 # =============================
 # 1. CSVファイルの読み込みと前処理
 # =============================
 #data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
-data = pd.read_csv(f'data09-20-pre/local_search{problem_name}.csv')
+data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
 con_cols = [c for c in data.columns if c.startswith('Con_')]
 total = data[con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 target_constraints = ['Con_1']
@@ -93,12 +93,12 @@ print(a)
 nodes = list(G.nodes())
 X_all = np.array([G.nodes[n]['X'] for n in nodes])
 N = len(nodes)
-
-#正規化
-X_all_norm = (X_all - lower) / diff
+if problem_name != 'RWMOP0':
+    #正規化
+    X_all = (X_all - lower) / diff
 
 # ノード間のユークリッド距離行列を作成
-dist_matrix = pairwise_distances(X_all_norm, metric='euclidean')
+dist_matrix = pairwise_distances(X_all, metric='euclidean')
 
 epsilon = 1e-10
 dist_matrix[dist_matrix < epsilon] = epsilon  # ゼロ除算回避のため
@@ -173,15 +173,15 @@ nx.draw_networkx_nodes(
 )
 
 ax = plt.gca()
-ax.set_yscale('symlog', linthresh=1e-3)
+ax.set_yscale('symlog', linthresh=1e-1)
 # 「指数表記」で軸を表示したい場合は LogFormatterSciNotation などを使う
 log_formatter = ticker.LogFormatterSciNotation(base=10)
 ax.yaxis.set_major_formatter(log_formatter)
 
 ax.tick_params(axis='y', which='both', labelleft=True)
 ax.axis('on')
-plt.ylim(bottom=-1e-3)
-plt.ylim(top=1e6)
+plt.ylim(bottom=-1e-1)
+plt.ylim(top=1e1)
 plt.subplots_adjust(left=0.2, right=0.95, top=0.95, bottom=0.05)
 
 plt.show()

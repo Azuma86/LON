@@ -5,10 +5,10 @@ from mpl_toolkits.mplot3d import Axes3D  # 3D描画に必要
 
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
-problem_name = 'RWMOP26'
+problem_name = 'RWMOP0'
 algo = 'data'
 # 1) CSVファイル読み込み
-data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
 
 # 2) 制約違反量CVを計算 (Con_で始まる列を合計)
 con_cols = [c for c in data.columns if c.startswith('Con_')]
