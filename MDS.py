@@ -10,9 +10,10 @@ from sklearn.manifold import MDS
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
-problem_name = 'RWMOP0'
+problem_name = 'RWMOP01_10Da05'
+name = 'RWMOP01_10Da05'
 algo = 'data'
-if problem_name != 'RWMOP0':
+if problem_name != name:
     domain_df = pd.read_csv('domain_info.csv')
     # 指定した問題名の行を取得
     row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
@@ -24,7 +25,7 @@ if problem_name != 'RWMOP0':
 # 1. CSVファイルの読み込みと前処理
 # =============================
 #data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
-data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
+data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
 con_cols = [c for c in data.columns if c.startswith('Con_')]
 total = data[con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 target_constraints = ['Con_1']
@@ -93,7 +94,7 @@ print(a)
 nodes = list(G.nodes())
 X_all = np.array([G.nodes[n]['X'] for n in nodes])
 N = len(nodes)
-if problem_name != 'RWMOP0':
+if problem_name != name:
     #正規化
     X_all = (X_all - lower) / diff
 

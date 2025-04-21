@@ -139,8 +139,8 @@ row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 lower = np.array([float(v) for v in row['lower'].split(",")])
 upper = np.array([float(v) for v in row['upper'].split(",")])
 diff = upper - lower
-#data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
-data = pd.read_csv(f'data09-20-pre/local_search{problem_name}.csv')
+data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+#data = pd.read_csv(f'data09-20-pre/local_search{problem_name}.csv')
 
 # 各制約違反値の計算（複数のCon_がある場合は0以上の和をとる）
 con_cols = [c for c in data.columns if c.startswith('Con_')]
