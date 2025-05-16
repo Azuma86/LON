@@ -14,7 +14,7 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP25'
+problem_name = 'RWMOP3'
 algo = 'data'
 base_dir = Path('data09-20')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
@@ -134,7 +134,7 @@ if n_dim == 2:
     ):
         nx.draw_networkx_nodes(
             G, pos2d, nodelist=nodeset,
-            node_color=color_map[name], node_edgecolor="black", node_size=10,
+            node_color=color_map[name], node_size=10,
         )
 
     plt.show()
