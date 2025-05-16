@@ -10,8 +10,8 @@ from sklearn.manifold import MDS
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
-problem_name = 'RWMOP01_10Da05'
-name = 'RWMOP01_10Da05'
+problem_name = 'RWMOP'
+name = 'RWMOP'
 algo = 'data'
 if problem_name != name:
     domain_df = pd.read_csv('domain_info.csv')
@@ -24,8 +24,8 @@ if problem_name != name:
 # =============================
 # 1. CSVファイルの読み込みと前処理
 # =============================
-#data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
-data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
+#data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
 con_cols = [c for c in data.columns if c.startswith('Con_')]
 total = data[con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 target_constraints = ['Con_1']
@@ -174,15 +174,15 @@ nx.draw_networkx_nodes(
 )
 
 ax = plt.gca()
-ax.set_yscale('symlog', linthresh=1e-1)
+ax.set_yscale('symlog', linthresh=1e-5)
 # 「指数表記」で軸を表示したい場合は LogFormatterSciNotation などを使う
 log_formatter = ticker.LogFormatterSciNotation(base=10)
 ax.yaxis.set_major_formatter(log_formatter)
 
 ax.tick_params(axis='y', which='both', labelleft=True)
 ax.axis('on')
-plt.ylim(bottom=-1e-1)
-plt.ylim(top=1e1)
+plt.ylim(bottom=-1e-5)
+plt.ylim(top=1e5)
 plt.subplots_adjust(left=0.2, right=0.95, top=0.95, bottom=0.05)
 
 plt.show()
