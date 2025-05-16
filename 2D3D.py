@@ -134,7 +134,7 @@ if n_dim == 2:
     ):
         nx.draw_networkx_nodes(
             G, pos2d, nodelist=nodeset,
-            node_color=color_map[name], node_edgecolor="black", node_size=10,
+            node_color=color_map[name], node_size=10,
         )
 
     plt.show()
