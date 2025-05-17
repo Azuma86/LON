@@ -13,7 +13,7 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP20'
+problem_name = 'RWMOP23'
 algo = 'data'
 base_dir = Path('data09-20')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
@@ -28,7 +28,7 @@ con_cols = [c for c in data.columns if c.startswith('Con_')]
 n_dim = len(X_cols)
 
 # total constraint violation (clip negative to zero)
-data['CV'] = data[con_cols].clip(lower=0).sum(axis=1)
+data['CV'] = data[con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 # sort by ID and generation for graph edges order
 
 data_sorted = data.sort_values(['ID', 'Gen']).reset_index(drop=True)
