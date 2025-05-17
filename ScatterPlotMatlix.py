@@ -12,8 +12,15 @@ from pathlib import Path
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
+linewidth = 0.1 #エッジの太さ
+s=3 #ノードサイズ
+alpha=0.8 #ノードの透明度
+mutation_scale=1 #矢印の大きさ
+alpha1=1 #矢印の透明度
+lw=0.1 #矢印の太さ
+
 # Problem settings
-problem_name = 'RWMOP20'
+problem_name = 'RWMOP26'
 algo = 'data'
 base_dir = Path('data09-20')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
@@ -74,13 +81,13 @@ for name, mask in masks.items():
         ax = axes[j, i]
         ax.scatter(
             subset[f'X_{i+1}'], subset[f'X_{j+1}'],
-            c=colors[name], edgecolor = 'black',linewidth = 0.3,s=10, label=name if (i,j)==(1,0) else None, alpha=0.8
+            c=colors[name], edgecolor = 'black',linewidth = linewidth,s=s, label=name if (i,j)==(1,0) else None, alpha=alpha,
         )
         # 対称プロットにも
         ax2 = axes[i, j]
         ax2.scatter(
             subset[f'X_{j+1}'], subset[f'X_{i+1}'],
-            c=colors[name], edgecolor = 'black',linewidth = 0.3,s=10, alpha=0.8
+            c=colors[name], edgecolor = 'black',linewidth = linewidth,s=s, alpha=alpha
         )
 
 # --- 矢印（世代遷移）を重ね描き ---
@@ -93,16 +100,16 @@ for id_val, group in data_sorted.groupby('ID'):
             ax = axes[j, i]
             arrow = FancyArrowPatch(
                 (u[i], u[j]), (v[i], v[j]),
-                arrowstyle='-|>', mutation_scale=3,
-                color='gray', alpha=0.8, lw=0.2
+                arrowstyle='-|>', mutation_scale=mutation_scale,
+                color='gray', alpha=alpha1, lw=lw
             )
             ax.add_patch(arrow)
             # 対称側も
             ax2 = axes[i, j]
             arrow2 = FancyArrowPatch(
                 (u[j], u[i]), (v[j], v[i]),
-                arrowstyle='-|>', mutation_scale=3,
-                color='gray', alpha=0.8, lw=0.2
+                arrowstyle='-|>', mutation_scale=mutation_scale,
+                color='gray', alpha=alpha1, lw=lw
             )
             ax2.add_patch(arrow2)
 
