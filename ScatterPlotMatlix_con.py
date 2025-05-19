@@ -6,11 +6,12 @@ from matplotlib.colors import Normalize
 from pathlib import Path
 
 # --- データ読み込み ---
-csv_path = Path('/Users/azumayuki/Downloads/RWMOP/RWMOP20.csv')
+csv_path = Path('/Users/azumayuki/Downloads/RWMOP/RWMOP22.csv')
 df = pd.read_csv(csv_path)
 
 # 制約列を自動検出
 Con_cols = [c for c in df.columns if c.startswith('Con')]
+df[Con_cols] = df[Con_cols].clip(lower=0)
 data = df[Con_cols]
 
 # --- 相関行列の事前計算 ---
@@ -34,11 +35,13 @@ def corr_tile(x, y, **kws):
         color = cmap(-r)
     # 背景色として塗りつぶし
     ax.set_facecolor(color)
+    ax.grid(False)
     # 中央に係数を描画
+    txt_color = 'white' if abs(r) > 0.5 else 'black'
     ax.text(0.5, 0.5, f"{r:.2f}",
             ha='center', va='center',
-            color='white' if abs(r)>0.5 else 'black',
-            fontsize=30)
+            transform=ax.transAxes,
+            color=txt_color, fontsize=30)
     # 軸目盛りと枠線を消す
     """
     ax.set_xticks([]); ax.set_yticks([])
@@ -50,7 +53,17 @@ sns.set(style='whitegrid', font_scale=1.2)
 g = sns.PairGrid(data, diag_sharey=False, height=3)
 
 # 対角：各変数のヒストグラム
-g.map_diag(sns.histplot,bins = 10, color='royalblue')
+def diag_hist_zero(x, **kws):
+    ax = plt.gca()
+    sns.histplot(x, bins=50, color='royalblue', edgecolor='black', ax=ax)
+    # 0 の割合計算
+    frac_zero = np.mean(x == 0)
+    ax.text(0.5, 0.5, f"{frac_zero:.1%}",
+            ha='center', va='center', transform=ax.transAxes,
+            color='black', fontsize=30)
+
+# 各制約の分布と 0 割合の表示
+g.map_diag(diag_hist_zero)
 
 # 下三角：散布図
 g.map_lower(sns.scatterplot, s=20, edgecolor='k', alpha=0.7)

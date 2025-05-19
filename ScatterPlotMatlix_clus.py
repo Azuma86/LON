@@ -127,14 +127,14 @@ for name, mask in masks.items():
         ax = axes[j, i]
         ax.scatter(
             subset[X_cols[i]], subset[X_cols[j]],
-            c=colors[name], edgecolor='k', linewidth=EDGE_LW,
+            c=colors[name], edgecolor='black', linewidth=EDGE_LW,
             s=NODE_SIZE, alpha=NODE_ALPHA,
             label=name if (i,j)==(1,0) else None
         )
         ax2 = axes[i, j]
         ax2.scatter(
             subset[X_cols[j]], subset[X_cols[i]],
-            c=colors[name], edgecolor='k', linewidth=EDGE_LW,
+            c=colors[name], edgecolor='black', linewidth=EDGE_LW,
             s=NODE_SIZE, alpha=NODE_ALPHA
         )
 # draw arrows only for medoid series
@@ -163,6 +163,4 @@ for sid in medoids:
 axes[1,0].legend(loc='upper right', fontsize=8)
 for ax in axes.flatten():
     ax.tick_params(labelsize=8)
-plt.suptitle('Filtered Scatter Matrix of Medoid Series', y=0.92)
-plt.tight_layout()
 plt.show()

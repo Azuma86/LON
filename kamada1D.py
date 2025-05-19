@@ -179,7 +179,7 @@ ax.tick_params(axis='y', which='both', labelleft=True)
 
 ax.axis('on')
 plt.ylim(bottom=-1e-5)
-plt.ylim(top=1e1)
+plt.ylim(top=1e4)
 plt.subplots_adjust(left=0.2, right=0.95, top=0.95, bottom=0.05)
 
 plt.show()
