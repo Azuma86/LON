@@ -6,7 +6,9 @@ from pandas.plotting import scatter_matrix
 from matplotlib.patches import FancyArrowPatch
 from itertools import combinations
 from pathlib import Path
-import ot                                      # POT: Python Optimal Transport
+from tslearn.metrics import dtw  # または fastdtw
+import h5py
+from scipy.spatial.distance import euclidean  # fastdtw を使う場合
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 
@@ -27,7 +29,7 @@ ARROW_LW     = 0.1    # arrow line width
 # Problem settings
 problem_name = 'RWMOP23'
 algo         = 'data'
-base_dir     = Path('data09-20')
+base_dir     = Path('/Users/azumayuki/Documents/LONs/data09-20')
 csv_path     = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
@@ -63,15 +65,21 @@ series_ids  = list(group_idx.keys())
 # ----------------------------------------------------------------
 N = len(series_ids)
 W = np.zeros((N, N))
+
 for i, sid_i in enumerate(series_ids):
-    Xi = raw.loc[group_idx[sid_i], X_cols].values
-    mu = np.ones(len(Xi)) / len(Xi)
+    Xi = raw.loc[group_idx[sid_i], X_cols].values          # (T_i, n_dim)
     for j, sid_j in enumerate(series_ids[i+1:], start=i+1):
-        Xj = raw.loc[group_idx[sid_j], X_cols].values
-        nu = np.ones(len(Xj)) / len(Xj)
-        C  = cdist(Xi, Xj, 'euclidean')
-        W_ij = ot.emd2(mu, nu, C)
-        W[i, j] = W[j, i] = W_ij
+        Xj = raw.loc[group_idx[sid_j], X_cols].values      # (T_j, n_dim)
+
+        # --- ① tslearn.metrics.dtw を用いる場合 -----------------
+        # dtw は (サンプル数, 次元) の 2D array（float64）がそのまま渡せる
+        dist = dtw(Xi, Xj)          # 距離スカラー
+
+        # --- ② fastdtw（近似）を用いる場合 --------------------
+        # from fastdtw import fastdtw
+        # dist, _ = fastdtw(Xi, Xj, dist=euclidean)
+
+        W[i, j] = W[j, i] = dist
 
 # ----------------------------------------------------------------
 # 4. Cluster series and select medoids
@@ -160,7 +168,7 @@ for sid in medoids:
             )
             ax2.add_patch(arr2)
 # finalize
-axes[1,0].legend(loc='upper right', fontsize=8)
+
 for ax in axes.flatten():
     ax.tick_params(labelsize=8)
 plt.show()

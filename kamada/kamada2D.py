@@ -12,7 +12,7 @@ plt.rcParams["font.size"] = 20
 problem_name = 'RWMOP25'
 algo_list = ['data']
 
-domain_df = pd.read_csv('domain_info.csv')
+domain_df = pd.read_csv('../domain_info.csv')
 row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 
 lower = np.array([float(v) for v in row['lower'].split(",")])
