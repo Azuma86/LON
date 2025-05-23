@@ -1,18 +1,25 @@
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
+from ot.gromov import gromov_wasserstein2
 from sklearn.metrics import pairwise_distances
 from collections import defaultdict
 import matplotlib.ticker as ticker
+import ot
+from scipy.spatial.distance import squareform
+from sklearn.cluster import AgglomerativeClustering
 
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
-problem_name = 'RWMOP3'
+problem_name = 'RWMOP22'
 name = 'RWMOP7'
 algo = 'data'
+n_clusters = 30
 if problem_name != name:
-    domain_df = pd.read_csv('domain_info.csv')
+    domain_df = pd.read_csv('../domain_info.csv')
 
     # 指定した問題名の行を取得
     row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
@@ -24,7 +31,7 @@ if problem_name != name:
 # =============================
 # 1. CSVファイルの読み込みと前処理
 # =============================
-data = pd.read_csv(f'data09-20/{problem_name}_{algo}.csv')
+data = pd.read_csv(f'data09-20-pre/{problem_name}_{algo}.csv')
 con_cols = [c for c in data.columns if c.startswith('Con_')]
 total = data[con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 target_constraints = ['Con_1']
@@ -42,15 +49,6 @@ for idx, row in data_sorted.iterrows():
                X=row[X_cols].values,
                CV=row['CV'])
 
-prev_row = None
-prev_idx = None
-
-for idx, row in data_sorted.iterrows():
-    if prev_row is not None and prev_row['ID'] == row['ID'] and row['Gen'] == prev_row['Gen'] + 1:
-        G.add_edge(prev_idx, idx)
-    prev_row = row
-    prev_idx = idx
-sink_nodes = [n for n in G.nodes() if G.out_degree(n) == 0]
 
 # 重複ノード群の特定
 vec2nodes = defaultdict(list)
@@ -83,9 +81,73 @@ for vec, node_list in vec2nodes.items():
             # dupノード削除
             G.remove_node(dup)
 
+# -----------------------------
+# 2. Extract subgraphs per series ID
+# -----------------------------
+id_values = sorted({G.nodes[n]['ID'] for n in G.nodes()})
+subgraphs = []
+for id_val in id_values:
+    nodes_i = [n for n in G.nodes() if G.nodes[n]['ID']==id_val]
+    subgraphs.append(G.subgraph(nodes_i).copy())
 
-# ここでGに重複ノードはなくなった
+# -----------------------------
+# 3. Compute distance matrices with inf handling
+# -----------------------------
+dist_mats = []
+for H in subgraphs:
+    D = nx.floyd_warshall_numpy(H)         # yields inf for unreachable
+    D = np.array(D, dtype=float)
+    if np.isinf(D).any():
+        max_fin = np.nanmax(D[np.isfinite(D)])
+        D[np.isinf(D)] = max_fin * 10       # large finite value
+    dist_mats.append(D)
+
+# -----------------------------
+# 4. Compute pairwise Gromov--Wasserstein distances
+# -----------------------------
+n = len(dist_mats)
+W = np.zeros((n,n))
+for i in range(n):
+    for j in range(i+1, n):
+        C1 = dist_mats[i]
+        C2 = dist_mats[j]
+        p  = np.ones(C1.shape[0]) / C1.shape[0]
+        q  = np.ones(C2.shape[0]) / C2.shape[0]
+        # handle any NaNs
+        C1 = np.nan_to_num(C1, nan=max_fin*10)
+        C2 = np.nan_to_num(C2, nan=max_fin*10)
+        gw = gromov_wasserstein2(C1, C2, p, q, 'square_loss')
+        W[i, j] = W[j, i] = gw
+
+# -----------------------------
+# 5. Cluster series by GW distance and select medoids
+# -----------------------------
+cl = AgglomerativeClustering(
+    n_clusters=n_clusters,
+    metric='precomputed',
+    linkage='average'
+).fit(W)
+labels = cl.labels_
+
+rep_ids = []
+for c in range(n_clusters):
+    idxs = np.where(labels==c)[0]
+    subW  = W[np.ix_(idxs, idxs)]
+    med   = idxs[np.argmin(subW.sum(axis=1))]
+    rep_ids.append(id_values[med])
+print("Representative series IDs:", rep_ids)
+
+# -----------------------------
+# 6. Filter G to representative subgraphs and visualize
+# -----------------------------
+keep = [n for n in G.nodes() if G.nodes[n]['ID'] in rep_ids]
+G = G.subgraph(keep).copy()
+prev_row = None
+prev_idx = None
+
+# --- 以下は元の可視化コードを G_filtered で再利用 ---
 nodes = list(G.nodes())
+
 X_all = np.array([G.nodes[n]['X'] for n in nodes])
 N = len(nodes)
 

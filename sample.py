@@ -1,157 +1,151 @@
 import numpy as np
+import pandas as pd
 import networkx as nx
 import matplotlib.pyplot as plt
-import pandas as pd
+from sklearn.metrics import pairwise_distances
+from collections import defaultdict
+import matplotlib.ticker as ticker
+from ot.gromov import gromov_wasserstein2
+from sklearn.cluster import AgglomerativeClustering
+from pathlib import Path
 
+# -----------------------------
+# Configurations
+# -----------------------------
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
 
-problem_name = 'RWMOP22'
-domain_df = pd.read_csv('domain_info.csv')
+# -----------------------------
+# Parameters
+# -----------------------------
+data_dir   = Path('data09-20-pre')
+file_path  = data_dir / 'RWMOP22_data.csv'
+n_clusters = 50
 
-# 指定した問題名の行を取得
-row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
+# -----------------------------
+# 1. Load CSV and preprocess
+# -----------------------------
+df = pd.read_csv(file_path)
+# compute total constraint violation
+con_cols = [c for c in df.columns if c.startswith('Con_')]
+df['CV'] = df[con_cols].clip(lower=0).sum(axis=1)
+# sort by series ID and generation
+df_sorted = df.sort_values(['ID','Gen']).reset_index(drop=True)
+# capture decision variables for layout
+X_cols = [c for c in df.columns if c.startswith('X_')]
 
-# lower, upper を配列化 (スペース区切りを float に変換)
-lower = np.array([float(v) for v in row['lower'].split(",")])
-upper = np.array([float(v) for v in row['upper'].split(",")])
-diff = upper - lower
-# --- CSVファイルのパスを合わせてください ---
-filenameX = '/path/to/X_RWMOP23.csv'
-filenameC = '/path/to/Cons_RWMOP23.csv'
-
-X = np.genfromtxt(filenameX, delimiter=',')   # shape (N, D)
-Cons = np.genfromtxt(filenameC, delimiter=',')# shape (N, C)
-N, D = X.shape
-
-# 制約違反量 g_{i,c} を \max(0, g_{i,c}) で切り取り、合計
-consVal = np.sum(np.maximum(0, Cons), axis=1)  # shape (N,)
-
-###############################################################################
-# 2. 多項式突然変異 (Polynomial Mutation) に基づく遷移確信度の計算
-###############################################################################
-
-# --- パラメータ設定 (適宜調整してください) ---
-delta = 3              # 平均で何次元が変異するか (例)
-pi_ = delta / float(D) # 突然変異確率 π
-mu_ = 20.0             # 多項式突然変異の形状パラメータ μ
-epsilon = 0.95         # 近傍とみなす遷移確信度のしきい値
-
-# --- 下限・上限を適切に定義してください ---
-#   RWMOP問題の厳密な lb, ub があるなら  CSV等で読み込むのがおすすめです。
-#   ここでは簡易にサンプル X の最小・最大を利用しています。
-lb = X.min(axis=0)
-ub = X.max(axis=0)
-
-def poly_inverse(y_d, x_d, l_d, u_d, mu):
-    """
-    資料にある poly_d^{-1}(y_d) を計算する補助関数.
-    y_d < x_d, = x_d, > x_d で場合分け
-    """
-    # 数値誤差でほぼ同じ場合は等しいとみなす
-    if np.isclose(y_d, x_d):
-        return 0.5
-    elif y_d < x_d:
-        num = ( ((u_d - x_d)/(u_d - l_d))**(mu+1)
-               - ((u_d - l_d - x_d + y_d)/(u_d - l_d))**(mu+1) )
-        den = 2.0*( ((u_d - x_d)/(u_d - l_d))**(mu+1) - 1.0 )
-        return num/den if den != 0 else 0.5
-    else:  # y_d > x_d
-        num = ( ((x_d - l_d)/(u_d - l_d))**(mu+1)
-               + ((u_d - l_d + x_d - y_d)/(u_d - l_d))**(mu+1)
-               - 2.0 )
-        den = 2.0*( ((x_d - l_d)/(u_d - l_d))**(mu+1) - 1.0 )
-        return num/den if den != 0 else 0.5
-
-def extremeness(y_d, x_d, l_d, u_d, mu):
-    """
-    ex_d(y_d) = 2 * | poly_d^{-1}(y_d) - 0.5 |
-    x_d は poly_d^{-1}(x_d) = 0.5 を仮定
-    """
-    val_inv = poly_inverse(y_d, x_d, l_d, u_d, mu)
-    return 2.0 * abs(val_inv - 0.5)
-
-def transition_confidence(x_i, x_j, pi_, mu_, lb, ub, eps=1e-14):
-    """
-    C(x_i -> x_j) を計算する.
-    x_i, x_j: 長さDのnumpy配列
-    pi_, mu_: PMのパラメータ (π, μ)
-    lb, ub  : 各次元の下限・上限 (配列)
-    eps     : 数値的に極小値に達したら打ち切る用のしきい値
-    """
-    p = 1.0
-    D_ = len(x_i)
-    for d in range(D_):
-        if np.isclose(x_i[d], x_j[d]):
-            # Pr( ex_d(y_d) <= ex_d(z_d) ) = 1
-            continue
-        else:
-            e = extremeness(x_j[d], x_i[d], lb[d], ub[d], mu_)
-            # 資料式(4)の下側:  π * (1 - ex_d(y_d))
-            p_d = pi_ * (1.0 - e)
-            # 負になる場合は確率0とみなす (e>1.0 なら 1-e<0)
-            if p_d < 0.0:
-                p_d = 0.0
-            p *= p_d
-            if p < eps:
-                break
-    return p
-
-###############################################################################
-# 3. グラフ構築
-###############################################################################
-
+# -----------------------------
+# 2. Build directed graph G
+# -----------------------------
 G = nx.DiGraph()
-G.add_nodes_from(range(N))  # ノードはサンプル番号 0..N-1
+prev = None; prev_idx = None
+for idx, row in df_sorted.iterrows():
+    G.add_node(idx,
+               ID = row['ID'],
+               Gen= row['Gen'],
+               X  = row[X_cols].values.astype(float),
+               CV = row['CV'])
+    if prev is not None and row['ID']==prev['ID'] and row['Gen']==prev['Gen']+1:
+        G.add_edge(prev_idx, idx)
+    prev = row; prev_idx = idx
 
-# 例: 「制約違反量が小さくなる方向」にのみ辺を張る
-for i in range(N):
-    for j in range(N):
-        if i == j:
-            continue
-        c_ij = transition_confidence(X[i], X[j], pi_, mu_, lb, ub)
-        if c_ij >= epsilon:
-            if consVal[j] < consVal[i]:
-                G.add_edge(i, j)
+# -----------------------------
+# 3. Extract per-series subgraphs
+# -----------------------------
+id_values = sorted({G.nodes[n]['ID'] for n in G.nodes()})
+subgraphs = []
+for idv in id_values:
+    nodes_i = [n for n in G.nodes() if G.nodes[n]['ID']==idv]
+    subgraphs.append(G.subgraph(nodes_i).copy())
 
-###############################################################################
-# 4. 1次元 Kamada-Kawai レイアウト計算 → (x座標, 制約違反量) での可視化
-###############################################################################
+# -----------------------------
+# 4. Compute shortest-path matrices
+# -----------------------------
+dist_mats = []
+for H in subgraphs:
+    D = np.array(nx.floyd_warshall_numpy(H), dtype=float)
+    # replace inf by large finite
+    if np.isinf(D).any():
+        maxf = np.nanmax(D[np.isfinite(D)])
+        D[np.isinf(D)] = maxf * 10
+    dist_mats.append(D)
 
-pos_1d = nx.kamada_kawai_layout(G, dim=1)  # 1次元埋め込み
+# -----------------------------
+# 5. Pairwise Gromov–Wasserstein distances
+# -----------------------------
+n = len(dist_mats)
+W = np.zeros((n,n))
+for i in range(n):
+    for j in range(i+1,n):
+        C1 = dist_mats[i]; C2 = dist_mats[j]
+        p = np.ones(len(C1))/len(C1)
+        q = np.ones(len(C2))/len(C2)
+        # compute squared-loss GW cost
+        gw_val = gromov_wasserstein2(C1, C2, p, q, loss_fun='square_loss')
+        W[i,j] = W[j,i] = float(gw_val)
 
-# 2次元のdictに変換: x軸に 1次元埋め込み, y軸に consVal
-pos_2d = {}
-for i in range(N):
-    x_coord = pos_1d[i][0]
-    y_coord = consVal[i]
-    pos_2d[i] = (x_coord, y_coord)
+# -----------------------------
+# 6. Cluster series and select medoids
+# -----------------------------
+cl = AgglomerativeClustering(
+    n_clusters=n_clusters,
+    metric='precomputed', linkage='average'
+).fit(W)
+labels = cl.labels_
 
-###############################################################################
-# 5. グラフ描画
-###############################################################################
+rep_ids = []
+for c in range(n_clusters):
+    idxs = np.where(labels==c)[0]
+    subW = W[np.ix_(idxs,idxs)]
+    med  = idxs[np.argmin(subW.sum(axis=1))]
+    rep_ids.append(id_values[med])
+print("Representative series IDs:", rep_ids)
 
-plt.figure(figsize=(8, 6))
+# -----------------------------
+# 7. Filter original graph to reps
+# -----------------------------
+keep = [n for n in G.nodes() if G.nodes[n]['ID'] in rep_ids]
+G_rep = G.subgraph(keep).copy()
 
-# ノードの描画
-nx.draw_networkx_nodes(
-    G, pos_2d,
-    node_size=30,
-    node_color='blue',
-    alpha=0.7
-)
+# -----------------------------
+# 8. 1D layout + CV visualization
+# -----------------------------
+nodes = list(G_rep.nodes())
+X_all = np.vstack([G_rep.nodes[n]['X'] for n in nodes])
+# normalize if domain info exists
+# domain_df loading omitted here
+# pos_1d via Kamada-Kawai on X_all distances
+D = pairwise_distances(X_all, metric='euclidean')
+D[D<1e-10] = 1e-10
+dist_dict = {ni:{nj:D[i,j] for j,nj in enumerate(nodes)} for i,ni in enumerate(nodes)}
+pos_1d = nx.kamada_kawai_layout(G_rep, dist=dist_dict, dim=1)
+# assemble 2D positions: x=embedding, y=CV
+pos = {n:(pos_1d[n][0], G_rep.nodes[n]['CV']) for n in nodes}
 
-# エッジの描画 (件数が多い場合は非常に煩雑になるので注意)
-nx.draw_networkx_edges(
-    G, pos_2d,
-    arrowstyle='->',
-    arrows=True,
-    arrowsize=10,
-    alpha=0.3
-)
+# classify nodes
+sink = [n for n in nodes if G_rep.out_degree(n)==0]
+final_f = [n for n in sink if G_rep.nodes[n]['CV']==0]
+final_i = [n for n in sink if G_rep.nodes[n]['CV']>0]
+mid = [n for n in nodes if n not in sink]
+mid_f = [n for n in mid if G_rep.nodes[n]['CV']==0]
+mid_i = [n for n in mid if G_rep.nodes[n]['CV']>0]
 
-plt.title("Directed Graph for RWMOP#23 (1D K-K layout, y= sum of max(0, g_i))")
-plt.xlabel("Kamada-Kawai 1D embedding")
-plt.ylabel("Constraint Violation (sum of max(0, g_i))")
+# plot
+gg = plt.figure(figsize=(12,10))
+ax = gg.gca()
+nx.draw_networkx_edges(G_rep, pos, arrowstyle='->', arrowsize=12,
+                       edge_color='gray', alpha=0.5)
+nx.draw_networkx_nodes(G_rep, pos, nodelist=mid_i, node_size=50,
+                       node_color='skyblue', edgecolors='black')
+nx.draw_networkx_nodes(G_rep, pos, nodelist=mid_f, node_size=50,
+                       node_color='salmon', edgecolors='black')
+nx.draw_networkx_nodes(G_rep, pos, nodelist=final_f, node_size=60,
+                       node_color='red', edgecolors='black')
+nx.draw_networkx_nodes(G_rep, pos, nodelist=final_i, node_size=60,
+                       node_color='blue', edgecolors='black')
+ax.set_yscale('symlog', linthresh=1e-5)
+ax.yaxis.set_major_formatter(ticker.LogFormatterSciNotation(10))
+plt.ylim(-1e-5, 1e4)
+plt.title('Representative Series System Graph')
 plt.tight_layout()
 plt.show()
