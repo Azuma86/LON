@@ -6,7 +6,7 @@ from matplotlib.colors import Normalize
 from pathlib import Path
 
 # --- データ読み込み ---
-csv_path = Path('/Users/azumayuki/Downloads/RWMOP/RWMOP22.csv')
+csv_path = Path('/Users/azumayuki/Downloads/RWMOP/RWMOP28.csv')
 df = pd.read_csv(csv_path)
 
 # 制約列を自動検出
