@@ -22,7 +22,7 @@ lw=0.1 #矢印の太さ
 # Problem settings
 problem_name = 'RWMOP23'
 algo = 'data'
-base_dir = Path('../../data09-20')
+base_dir = Path('../data09-20')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
