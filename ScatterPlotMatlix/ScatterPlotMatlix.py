@@ -20,9 +20,9 @@ alpha1=1 #矢印の透明度
 lw=0.1 #矢印の太さ
 
 # Problem settings
-problem_name = 'RWMOP23'
-algo = 'data'
-base_dir = Path('../data09-20')
+problem_name = 'RWMOP28'
+algo = 'local11'
+base_dir = Path('/Users/azumayuki/Documents/LON/data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
@@ -44,6 +44,7 @@ data_sorted = data.sort_values(['ID', 'Gen']).reset_index(drop=True)
 G = nx.DiGraph()
 for idx, row in data_sorted.iterrows():
     G.add_node(idx, X=row[[f'X_{i+1}' for i in range(n_dim)]].values, CV=row['CV'])
+
     if idx>0:
         prev = data_sorted.iloc[idx-1]
         if (prev['ID']==row['ID']) and (row['Gen']==prev['Gen']+1):
