@@ -36,8 +36,7 @@ dist = "dtw"
 # Problem settings
 problem_name = 'RWMOP28'
 algo         = 'local'
-base_dir     = Path('/Users/azumayuki/Documents/LONs/data09-20-pre')
-csv_path     = base_dir / f"{problem_name}_{algo}.csv"
+csv_path     =  f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
 # ----------------------------------------------------------------
@@ -66,14 +65,12 @@ for idx, row in raw.iterrows():
 # group indices by series ID
 group_idx = raw.groupby('ID').indices
 series_ids  = list(group_idx.keys())
-print("a")
 if dist == "ot":
     W = compute_ot_matrix(raw, series_ids, group_idx, X_cols)
 elif dist == "dtw":
     W = compute_dtw_matrix(raw, series_ids, group_idx, X_cols)
 elif dist == "gw":
     W = compute_gw_matrix(raw, series_ids, group_idx, X_cols,sinkhorn_eps=sinkhorn)
-print("a")
 # ----------------------------------------------------------------
 # 4. Cluster series and select medoids
 # ----------------------------------------------------------------

@@ -20,9 +20,9 @@ alpha1=1 #矢印の透明度
 lw=0.1 #矢印の太さ
 
 # Problem settings
-problem_name = 'RWMOP23'
-algo = 'data'
-base_dir = Path('../data09-20')
+problem_name = 'RWMOP28'
+algo = 'local11'
+base_dir = Path('/Users/azumayuki/Documents/LON/data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
