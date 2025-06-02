@@ -29,14 +29,15 @@ NODE_ALPHA   = 0.8    # node transparency
 ARROW_SCALE  = 3      # arrowhead scale
 ARROW_ALPHA  = 1      # arrow transparency
 ARROW_LW     = 0.1    # arrow line width
-n_cluster = 30
+n_cluster = 3
 sinkhorn = None
 dist = "dtw"
 
 # Problem settings
 problem_name = 'RWMOP28'
-algo         = 'local'
-csv_path     =  f"{problem_name}_{algo}.csv"
+algo = 'local11'
+base_dir = Path('../data09-20-pre')
+csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 
 # ----------------------------------------------------------------

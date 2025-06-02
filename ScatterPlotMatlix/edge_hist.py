@@ -74,8 +74,9 @@ filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <=
 # 2) ヒストグラム描画
 plt.figure(figsize=(8,5))
 n, bins, patches = plt.hist(
-    #edge_lengths[(edge_lengths >=  lower_bound) & (edge_lengths <=  upper_bound)],
-    filtered_lengths,
+    #edge_lengths[(edge_lengths >=  1)],
+    edge_lengths,
+    #filtered_lengths,
     bins='auto',
     color='steelblue',
     edgecolor='black',
