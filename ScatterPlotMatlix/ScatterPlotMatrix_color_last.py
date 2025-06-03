@@ -73,7 +73,7 @@ g.map_diag(sns.histplot, kde=False, bins=10, color='lightgray', edgecolor='black
 # 下三角：全データを CV ベースの色で散布
 g.map_lower(plt.scatter,
             color=colors_lower,
-            s=20, edgecolor='k', linewidth=0.2, alpha=0.8)
+            s=1, linewidth=0.2, alpha=0.8)
 
 # 上三角：最終世代ファイル df_final だけを“可行＝赤／違反＝青”で重ね描き
 n = len(X_cols)

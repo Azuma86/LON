@@ -3,7 +3,7 @@ from typing import Sequence, Dict
 import numpy as np
 import pandas as pd
 from scipy.spatial.distance import cdist, euclidean
-
+from ot.gromov import entropic_gromov_wasserstein2
 # --- Optional third-party libs (install as needed) ----------------
 import ot                                 # POT  for OT / GW
 from tslearn.metrics import dtw           # fast Cython DTW

@@ -53,10 +53,7 @@ for u, v in G.edges():
     x_v = G.nodes[v]['X']
     # ユークリッド距離
     dist = np.linalg.norm(x_u - x_v,ord=2)
-    if dist == 0:
-        print(u, v)
-        print(x_u[0], x_v[0])
-        print(dist)
+
     edge_lengths.append(dist)
 edge_lengths = np.array(edge_lengths)
 
@@ -74,8 +71,8 @@ filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <=
 # 2) ヒストグラム描画
 plt.figure(figsize=(8,5))
 n, bins, patches = plt.hist(
-    #edge_lengths[(edge_lengths >=  1)],
-    edge_lengths,
+    edge_lengths[(edge_lengths >=  0.1) ],
+    #edge_lengths,
     #filtered_lengths,
     bins='auto',
     color='steelblue',

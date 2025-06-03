@@ -9,6 +9,7 @@ from pathlib import Path
 import ot                                      # POT: Python Optimal Transport
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
+from KMedoids import kmedoids
 from distmatlix import (
     compute_ot_matrix,
     compute_dtw_matrix,
@@ -76,10 +77,10 @@ elif dist == "gw":
 # 4. Cluster series and select medoids
 # ----------------------------------------------------------------
 # use `metric` instead of deprecated `affinity`
-cl = AgglomerativeClustering(
-    n_clusters=n_cluster, metric='precomputed', linkage='average'
-).fit(W)
-labels = cl.labels_
+model = kmedoids(
+    n_clusters=n_cluster, random_state=42
+)
+labels = model.fit_predict(W)
 
 medoids = []
 for ci in range(n_cluster):

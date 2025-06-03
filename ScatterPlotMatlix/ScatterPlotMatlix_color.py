@@ -23,7 +23,7 @@ Con_cols = [c for c in df.columns if c.startswith('Con')]
 df['CV'] = df[Con_cols].apply(lambda row: np.sum(np.maximum(0, row)), axis=1)
 print("a")
 # プロットしたい世代リスト
-selected_gens = [1,100,200,300,400,500,600,700,800,900,1000]
+selected_gens = [1000]
 df_sel = df[df['Gen'].isin(selected_gens)].copy()
 
 # Normalize を用意
