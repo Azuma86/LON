@@ -10,6 +10,7 @@ import ot                                      # POT: Python Optimal Transport
 from scipy.spatial.distance import cdist
 from sklearn.cluster import AgglomerativeClustering
 from KMedoids import kmedoids
+from dbi import davies
 from distmatlix import (
     compute_ot_matrix,
     compute_dtw_matrix,
@@ -30,7 +31,7 @@ NODE_ALPHA   = 0.8    # node transparency
 ARROW_SCALE  = 3      # arrowhead scale
 ARROW_ALPHA  = 1      # arrow transparency
 ARROW_LW     = 0.1    # arrow line width
-n_cluster = 3
+n_cluster = 20
 sinkhorn = None
 dist = "dtw"
 
@@ -73,17 +74,35 @@ elif dist == "dtw":
     W = compute_dtw_matrix(raw, series_ids, group_idx, X_cols)
 elif dist == "gw":
     W = compute_gw_matrix(raw, series_ids, group_idx, X_cols,sinkhorn_eps=sinkhorn)
+max_K = n_cluster # 試したい最大クラスタ数
+ks = list(range(2, max_K + 1))
+dbi_scores = []
+
+for k in ks:
+    model = kmedoids(
+        n_clusters=k, random_state=42
+    )
+    labels = model.fit_predict(W)
+
+    # 4-2) Davies–Bouldin 指数を計算
+    dbi = davies(W, labels)
+    dbi_scores.append(dbi)
+    print(f"k={k:2d}, Davies–Bouldin Index = {dbi:.4f}")
+
+# 5-1) 最小の DBI を与える k を取得
+best_k = ks[np.argmin(dbi_scores)]
+print(f"Best k = {best_k}")
 # ----------------------------------------------------------------
 # 4. Cluster series and select medoids
 # ----------------------------------------------------------------
 # use `metric` instead of deprecated `affinity`
 model = kmedoids(
-    n_clusters=n_cluster, random_state=42
+    n_clusters=best_k, random_state=42
 )
 labels = model.fit_predict(W)
 
 medoids = []
-for ci in range(n_cluster):
+for ci in range(best_k):
     members = np.where(labels==ci)[0]
     subW    = W[np.ix_(members, members)]
     med_idx = members[np.argmin(subW.sum(axis=1))]
