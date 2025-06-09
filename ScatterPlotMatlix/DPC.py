@@ -1,5 +1,3 @@
-from collections import defaultdict
-
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -47,38 +45,35 @@ for idx, row in data_sorted.iterrows():
             G.add_edge(idx-1, idx)
 
 
-edge_lengths = []
+edge_info = []          # [(CV, edge_len), …]
+
 for u, v in G.edges():
-    x_u = G.nodes[u]['X']
-    x_v = G.nodes[v]['X']
-    # ユークリッド距離
-    dist = np.linalg.norm(x_u - x_v,ord=2)
+    cv_u  = G.nodes[u]['CV']
+    x_u   = G.nodes[u]['X']
+    x_v   = G.nodes[v]['X']
+    dist  = np.linalg.norm(x_u - x_v, ord=2)
 
-    edge_lengths.append(dist)
-edge_lengths = np.array(edge_lengths)
+    edge_info.append((cv_u, dist))
 
-print(np.max(edge_lengths))
-#edge_lengths[edge_lengths<1e-12] = 1e-12
-#log_lengths = np.log10(edge_lengths)
-q1 = np.percentile(edge_lengths, 25)
-q3 = np.percentile(edge_lengths, 75)
-iqr = q3 - q1
-lower_bound = q1 - 1.5 * iqr
-upper_bound = q3 + 1.5 * iqr
+# numpy 配列にして扱いやすく
+edge_info = np.array(edge_info)           # shape = (n_edge, 2)
+CV_vals   = edge_info[:, 0]
+edge_len  = edge_info[:, 1]
 
-# 2. 外れ値を除外したデータ
-filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <= upper_bound)]
-# 2) ヒストグラム描画
-plt.figure(figsize=(8,5))
-n, bins, patches = plt.hist(
-    edge_lengths[(edge_lengths >=  5) ],
-    #edge_lengths,
-    #filtered_lengths,
-    bins='auto',
-    color='steelblue',
-    edgecolor='black',
-    alpha=0.8
-)
-plt.grid(axis='y', alpha=0.3)
+
+q1, q3 = np.percentile(edge_len, [25, 75])
+iqr     = q3 - q1
+lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+mask    = (edge_len >= lower) & (edge_len <= upper)
+
+CV_plot  = CV_vals
+len_plot = edge_len
+
+
+plt.figure(figsize=(8, 6))
+plt.scatter(len_plot, CV_plot, s=10, alpha=0.7)   # 点サイズや透明度はお好みで
+plt.ylabel("CV")
+plt.xlabel("Edge Length")
+plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()

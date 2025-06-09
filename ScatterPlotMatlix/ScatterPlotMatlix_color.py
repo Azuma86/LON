@@ -8,7 +8,7 @@ from pathlib import Path
 
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
-problem_name = 'RWMOP28'
+problem_name = 'RWMOP23'
 csv_path = Path(f'/Users/azumayuki/Downloads/RWMOP/{problem_name}.csv')
 df = pd.read_csv(csv_path)
 use_log_cmap = False

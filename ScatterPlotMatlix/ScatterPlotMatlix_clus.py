@@ -31,12 +31,12 @@ NODE_ALPHA   = 0.8    # node transparency
 ARROW_SCALE  = 3      # arrowhead scale
 ARROW_ALPHA  = 1      # arrow transparency
 ARROW_LW     = 0.1    # arrow line width
-n_cluster = 20
+n_cluster = 30
 sinkhorn = None
 dist = "dtw"
 
 # Problem settings
-problem_name = 'RWMOP28'
+problem_name = 'RWMOP22'
 algo = 'local11'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
