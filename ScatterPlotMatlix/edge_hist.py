@@ -15,8 +15,8 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP22'
-algo = 'local11'
+problem_name = 'RWMOP28'
+algo = 'local31'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
@@ -71,7 +71,7 @@ filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <=
 # 2) ヒストグラム描画
 plt.figure(figsize=(8,5))
 n, bins, patches = plt.hist(
-    edge_lengths[(edge_lengths >=  5) ],
+    edge_lengths[(edge_lengths >=  0) ],
     #edge_lengths,
     #filtered_lengths,
     bins='auto',

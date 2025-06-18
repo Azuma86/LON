@@ -13,7 +13,7 @@ plt.rcParams["font.size"] = 20
 # -------------------------------------
 # （1）すべての世代が入ったファイル
 problem_name = 'RWMOP28'
-csv_all = Path(f'/Users/azumayuki/Downloads/RWMOP/{problem_name}_CVM.csv')
+csv_all = Path(f'/Users/azumayuki/Downloads/RWMOP/{problem_name}_CDP.csv')
 df_all = pd.read_csv(csv_all)
 use_log_cmap = False
 # 1列目を 'Gen' と仮定してリネーム
@@ -21,6 +21,11 @@ df_all = df_all.rename(columns={df_all.columns[0]: 'Gen'})
 X_cols = [c for c in df_all.columns if c.startswith('X')]
 Con_cols = [c for c in df_all.columns if c.startswith('Con')]
 
+domain_df = pd.read_csv('../domain_info.csv')
+row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
+
+lower = np.array([float(v) for v in row['lower'].split(",")])
+upper = np.array([float(v) for v in row['upper'].split(",")])
 # CV（制約違反量）を計算
 df_all['CV'] = df_all[Con_cols].clip(lower=0).sum(axis=1)
 
@@ -66,7 +71,7 @@ else:
 # df_final の CV を見て、可行なら赤、不可行なら青とする
 colors_final = [
     'red' if c == 0 else
-    'blue'
+    'skyblue'
     for c in df_final['CV'].values
 ]
 
@@ -100,6 +105,19 @@ for i in range(n):
 # 軸ラベルや目盛りの調整（必要なら）
 for ax in g.axes.flatten():
     ax.tick_params(labelsize=8)
+
+n = len(X_cols)
+for i in range(n):
+    for j in range(n):
+        ax = g.axes[i, j]
+        if i == j:
+            d = (upper[i] - lower[i])/20
+            ax.set_xlim(lower[i] - d, upper[i] + d)
+        else:
+            d1 = (upper[j] - lower[j]) / 20
+            d2 = (upper[i] - lower[i]) / 20
+            ax.set_xlim(lower[j] - d1, upper[j] + d1)
+            ax.set_ylim(lower[i] - d2, upper[i] + d2)
 
 plt.tight_layout()
 plt.show()

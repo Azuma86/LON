@@ -13,8 +13,8 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP22'
-algo = 'local11'
+problem_name = 'RWMOP28'
+algo = 'local31'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
@@ -75,5 +75,6 @@ plt.scatter(len_plot, CV_plot, s=10, alpha=0.7)   # 点サイズや透明度は�
 plt.ylabel("CV")
 plt.xlabel("Edge Length")
 plt.grid(alpha=0.3)
+#plt.yscale('log')
 plt.tight_layout()
 plt.show()

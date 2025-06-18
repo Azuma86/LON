@@ -14,7 +14,7 @@ from sklearn.cluster import AgglomerativeClustering
 
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 20
-problem_name = 'RWMOP22'
+problem_name = 'RWMOP28'
 name = 'RWMOP7'
 algo = 'data'
 n_clusters = 30
