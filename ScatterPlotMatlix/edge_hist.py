@@ -15,7 +15,7 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP28'
+problem_name = 'RWMOP22'
 algo = 'local31'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
@@ -69,9 +69,9 @@ upper_bound = q3 + 1.5 * iqr
 # 2. 外れ値を除外したデータ
 filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <= upper_bound)]
 # 2) ヒストグラム描画
-plt.figure(figsize=(8,5))
+plt.figure(figsize=(8,6))
 n, bins, patches = plt.hist(
-    edge_lengths[(edge_lengths >=  0) ],
+    edge_lengths[(edge_lengths >=  2) ],
     #edge_lengths,
     #filtered_lengths,
     bins='auto',
@@ -79,6 +79,9 @@ n, bins, patches = plt.hist(
     edgecolor='black',
     alpha=0.8
 )
+tic = np.linspace(2, 4, 4)
+#plt.xticks(ticks=tic)
 plt.grid(axis='y', alpha=0.3)
+#plt.ylim(0,1600)
 plt.tight_layout()
 plt.show()

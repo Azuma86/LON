@@ -9,16 +9,51 @@ from pathlib import Path
 # ----------------------------------------------------------------
 # Configurations
 # ----------------------------------------------------------------
+
+def poly_inv(y, x, l, u, eta, e=1e-20):
+    delta = (u - l)
+    if y < x:
+        t1 = ((u - x) / delta)**(eta + 1)
+        t2 = ((delta - x + y) / delta)**(eta + 1)
+        return (t1 - t2) / (2 * (t1 - 1) + e)
+    elif y == x:
+        return 0.5
+    else:
+        t1 = ((x - l) / delta)**(eta + 1)
+        t2 = ((delta + x - y) / delta)**(eta + 1)
+        return (t1 + t2 - 2) / (2 * (t1 - 1) + e)
+
+def extremeness(y, x, l, u, eta):
+    return 2 * abs(poly_inv(y, x, l, u, eta) - 0.5)
+
+def transition_confidence(x, y, lower, upper, eta, pi):
+    D = len(x)
+    p = []
+    for d in range(D):
+        ex = extremeness(y[d], x[d], lower[d], upper[d], eta)
+        if x[d] == y[d]:
+            p.append(1.0)
+        else:
+            p.append(pi * (1 - ex))
+    return np.prod(p)
+
+
+
+
 plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP22'
+problem_name = 'RWMOP28'
 algo = 'local31'
-base_dir = Path('../data09-20-pre')
+base_dir = Path('./data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
+domain_df = pd.read_csv('domain_info.csv')
+row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 
+lower = np.array([float(v) for v in row['lower'].split(",")])
+upper = np.array([float(v) for v in row['upper'].split(",")])
 # ----------------------------------------------------------------
 # 1. Load data and compute CV
 # ----------------------------------------------------------------
@@ -44,6 +79,8 @@ for idx, row in data_sorted.iterrows():
         if (prev['ID']==row['ID']) and (row['Gen']==prev['Gen']+1):
             G.add_edge(idx-1, idx)
 
+for idx in G.nodes:
+    G.nodes[idx]['Xn'] = (G.nodes[idx]['X'] - lower) / (upper - lower)
 
 edge_info = []          # [(CV, edge_len), …]
 
@@ -59,26 +96,45 @@ for u, v in G.edges():
 edge_info = np.array(edge_info)           # shape = (n_edge, 2)
 CV_vals   = edge_info[:, 0]
 edge_len  = edge_info[:, 1]
+# PMパラメータ
+n_dim = len(lower)
+eta_m = 20
+pm    = 1 / n_dim
+threshold = 0.05
+conf_vals = []
+for u, v in G.edges():
+    x = G.nodes[u]['X']
+    y = G.nodes[v]['X']
+    conf_vals.append(transition_confidence(
+        x, y, lower, upper, eta_m, pm
+    ))
 
+conf_vals = np.array(conf_vals)
+print(np.max(conf_vals))
+print(np.min(conf_vals))
+# ----------------------------------------------------------------
+# 4. 散布図を色分けしてプロット
+# ----------------------------------------------------------------
 
-q1, q3 = np.percentile(edge_len, [25, 75])
-iqr     = q3 - q1
-lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
-mask    = (edge_len >= lower) & (edge_len <= upper)
-
-CV_plot  = CV_vals
-len_plot = edge_len
-
+is_neighbor = (conf_vals >= threshold)
 
 plt.figure(figsize=(8, 6))
-plt.scatter(len_plot, CV_plot, s=10, alpha=0.7)   # 点サイズや透明度はお好みで
-plt.ylabel("CV")
+
+# 非近傍（赤）
+plt.scatter(edge_len[~is_neighbor],
+            CV_vals[~is_neighbor],
+            c='red',  s=10, alpha=0.7,
+            label=f'Non-neighbor (C < {threshold})')
+# 近傍（青）
+plt.scatter(edge_len[is_neighbor],
+            CV_vals[is_neighbor],
+            c='blue', s=10, alpha=0.7,
+            label=f'Neighbor (C > {threshold})')
+
 plt.xlabel("Edge Length")
+plt.ylabel("CV")
+plt.legend()
 plt.grid(alpha=0.3)
 plt.yscale('log')
-#plt.xlim(-0.5,15.5)
-
-plt.xticks(np.arange(0, 141, 20))
-plt.ylim(1e-3, 1e6)
 plt.tight_layout()
 plt.show()

@@ -6,8 +6,7 @@ from scipy.spatial.distance import cdist, euclidean
 from ot.gromov import entropic_gromov_wasserstein2
 # --- Optional third-party libs (install as needed) ----------------
 import ot                                 # POT  for OT / GW
-from tslearn.metrics import dtw           # fast Cython DTW
-# from fastdtw import fastdtw            # ← 近似 DTW を使うならこちら
+from tslearn.metrics import dtw, dtw_path          # fast Cython DTW
 
 # ------------------------------------------------------------------
 def _series_arrays(
@@ -61,11 +60,15 @@ def compute_dtw_matrix(raw, series_ids, group_idx, X_cols):
         Xi = traj[sid_i]
         for j, sid_j in enumerate(series_ids[i + 1 :], i + 1):
             Xj = traj[sid_j]
-            dist = dtw(Xi, Xj)               # exact DTW
-            # 近似版なら: dist, _ = fastdtw(Xi, Xj, dist=euclidean)
+            n_i, n_j = _series_len(Xi), _series_len(Xj)
+            dist = dtw(Xi, Xj)             # exact DTW
+            dist_norm = dist / (n_i + n_j)
             W[i, j] = W[j, i] = dist
     return W
 
+def _series_len(X: np.ndarray) -> int:
+    # 時間方向の長さ（行数）
+    return X.shape[0] if X.ndim >= 1 else 0
 
 # ------------------------------------------------------------------
 def compute_gw_matrix(raw, series_ids, group_idx, X_cols, sinkhorn_eps=None):
