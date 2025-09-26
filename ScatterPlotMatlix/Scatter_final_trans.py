@@ -31,20 +31,20 @@ sns.set_style('whitegrid', {
 
 # Plot parameters
 EDGE_LW          = 0.1  # edge line width
-NODE_SIZE        = 10   # node scatter size
-FINAL_NODE_SIZE  = 20   # sink node size
+NODE_SIZE        = 25   # node scatter size
+FINAL_NODE_SIZE  = 60   # sink node size
 NODE_ALPHA       = 1  # node transparency
-ARROW_LW         = 0.5  # arrow line width
-ARROW_ALPHA      = 0.5  # arrow transparency
+ARROW_LW         = 0.8  # arrow line width
+ARROW_ALPHA      = 1  # arrow transparency
 MARGIN           = 0.05 # axis margin fraction
 
 # Distance and clustering settings
 DIST_METHOD = 'dtw'  # 'ot' | 'dtw' | 'gw'
 SINKHORN_EPS = None  # for GW
-MAX_CLUSTERS = 30
+MAX_CLUSTERS = 20
 
 # Problem settings
-PROBLEM_NAME = 'RWMOP23'
+PROBLEM_NAME = 'RWMOP22'
 ALGO         = 'local31'
 BASE_DIR     = Path('../data09-20-pre')
 DOMAIN_PATH  = Path('../domain_info.csv')
@@ -182,7 +182,7 @@ def visualize_pairgrid(data: pd.DataFrame,
 
     # 2) PairGrid を組み直し
     g = sns.PairGrid(data, vars=X_cols, diag_sharey=False, height=2)
-    """
+
     # 対角：ヒストグラム（色だけ feasibility 反映してもOK）
     g.map_diag(sns.histplot, kde=False, bins=10, color='royalblue', edgecolor='black')
 
@@ -194,13 +194,13 @@ def visualize_pairgrid(data: pd.DataFrame,
                 edgecolor='black',
                 linewidths=0.1)
     g.map_lower(plot_transitions, data=data)
-    """
+
     X_cols = [c for c in data2.columns if c.startswith('X')]
     #上三角
     n = len(X_cols)
     for i in range(n):
         for j in range(n):
-            if i > j:
+            if i < j:
                 ax = g.axes[i, j]
                 xcol = X_cols[j]
                 ycol = X_cols[i]
@@ -247,7 +247,7 @@ if __name__ == '__main__':
     # 最適クラスタ数 k の選定
     k_values = range(2, MAX_CLUSTERS+1)
     best_k = select_optimal_k(W, k_values)
-
+    best_k = 30
     # メドイド選択
     medoid_ids = select_medoids(W, series_list, best_k)
     medoid_df = raw_df[raw_df['ID'].isin(medoid_ids)].copy()
@@ -261,9 +261,9 @@ if __name__ == '__main__':
         if prev_idx >= 0 and raw_df.at[prev_idx, 'ID'] == row['ID']:
             G.add_edge(prev_idx, idx)
     sinks = [n for n in G.nodes() if G.out_degree(n) == 0]
-    medoid_df['is_sink'] = medoid_df.index.isin(sinks)
-    medoid_df['feasible'] = medoid_df['CV'] == 0
-
+    df = raw_df
+    df['is_sink'] = df.index.isin(sinks)
+    df['feasible'] = df['CV'] == 0
     # 可視化
-    visualize_pairgrid(medoid_df,fi_df, lower_bounds, upper_bounds, colors_final, size_final)
+    visualize_pairgrid(df,fi_df, lower_bounds, upper_bounds, colors_final, size_final)
 

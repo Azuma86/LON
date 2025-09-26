@@ -14,7 +14,7 @@ problem_name = 'RWMOP'
 name = 'RWMOP'
 algo = 'data'
 if problem_name != name:
-    domain_df = pd.read_csv('domain_info.csv')
+    domain_df = pd.read_csv('../domain_info.csv')
     # 指定した問題名の行を取得
     row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
     lower = np.array([float(v) for v in row['lower'].split(",")])

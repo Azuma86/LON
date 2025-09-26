@@ -12,7 +12,7 @@ plt.rcParams["font.size"] = 20
 
 problem_name = 'RWMOP24'
 
-domain_df = pd.read_csv('domain_info.csv')
+domain_df = pd.read_csv('../domain_info.csv')
 # 指定した問題名の行を取得
 row = domain_df.loc[domain_df['problem'] == problem_name].iloc[0]
 

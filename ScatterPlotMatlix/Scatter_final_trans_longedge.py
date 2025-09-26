@@ -5,9 +5,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 import seaborn as sns
 from pathlib import Path
-
 from matplotlib.ticker import LinearLocator, MultipleLocator
-
 from KMedoids import kmedoids
 from dbi import davies
 from distmatlix import (
@@ -36,16 +34,16 @@ NODE_ALPHA       = 1  # node transparency
 ARROW_LW         = 0.8  # arrow line width
 ARROW_ALPHA      = 1  # arrow transparency
 MARGIN           = 0.05 # axis margin fraction
-EDGE_LEN_THRESH = 80
+EDGE_LEN_THRESH = 9
 CV_THRESH_up       = 1e5
 CV_THRESH_low      = 0
 # Distance and clustering settings
 DIST_METHOD = 'dtw'  # 'ot' | 'dtw' | 'gw'
 SINKHORN_EPS = None  # for GW
-MAX_CLUSTERS = 20
+MAX_CLUSTERS = 10
 
 # Problem settings
-PROBLEM_NAME = 'RWMOP22'
+PROBLEM_NAME = 'RWMOP28'
 ALGO         = 'local31'
 BASE_DIR     = Path('../data09-20-pre')
 DOMAIN_PATH  = Path('domain_info.csv')
@@ -214,7 +212,7 @@ def visualize_pairgrid(data: pd.DataFrame,
     n = len(X_cols)
     for i in range(n):
         for j in range(n):
-            if i > j:
+            if i < j:
                 ax = g.axes[i, j]
                 xcol = X_cols[j]
                 ycol = X_cols[i]
@@ -244,6 +242,7 @@ if __name__ == '__main__':
     fi_df = load_problem_final(PROBLEM_NAME)
 
     X_cols = [c for c in df_.columns if c.startswith('X_')]
+    C_cols = [c for c in df_.columns if c.startswith('Con_')]
     diff = df_.groupby('ID')[X_cols].diff(-1)  # (次行 － 現行)
     df_['edge_len'] = np.sqrt((diff ** 2).sum(axis=1))  # 末尾行は NaN
     # 閾値より大きいものを long_edge フラグとして立てる
@@ -255,26 +254,64 @@ if __name__ == '__main__':
     # 2) 「各IDで少なくとも1回 triggerがTrue」を満たすIDを取得
     ids = df_.groupby('ID')['trigger'].any()
     ids = ids[ids].index  # True の ID だけ
-
     # 3) そのIDに属する全行を抽出（系列ごと丸ごと）
     raw_df = df_[df_['ID'].isin(ids)].copy().reset_index(drop=True)
     print(raw_df.shape)
 
-    size_final = [
-        FINAL_NODE_SIZE if c == 0 else
-        NODE_SIZE
-        for c in fi_df['CV'].values
-    ]
+    dec = 10
+    X_cols2 = [c for c in fi_df.columns if c.startswith('X')]
+    long_keys = (
+        df_.loc[df_['trigger'], X_cols]
+        .round(dec)
+        .astype(str)
+        .agg('|'.join, axis=1)
+        .unique()
+    )
+
+    # 2) fi_df でも同じキーを生成
+    fi_keys = (
+        fi_df[X_cols2]
+        .round(dec)
+        .astype(str)
+        .agg('|'.join, axis=1)
+    )
+    # 3) fi_df['long_edge'] フラグを立てる
+    fi_df['trigger'] = fi_keys.isin(long_keys)
+    min_cv_val = df_['CV'].min(skipna=True)
+    df_['min_CV'] = (df_['CV'] == min_cv_val)
+    minCV = df_.loc[df_['min_CV']].copy().reset_index(drop=True)
+    long = df_[df_['trigger']]
+    long = long.drop_duplicates(subset=C_cols).reset_index(drop=True)
+    long_fi = fi_df[fi_df['trigger']]
+    print("a")
+    print(len(long))
+    for i in range(1,len(C_cols)+1):
+        print(long[f"Con_{i}"])
+    print("final")
+    for i in range(1, len(C_cols)+1):
+        print(long_fi[f"Con{i}"])
+    print("minCV")
+    for i in range(1, len(C_cols)+1):
+        print(minCV[f"Con_{i}"])
+
+
+    colors_final = np.where(
+        fi_df['trigger'], 'green',
+        np.where(fi_df['CV'] == 0, 'red', 'skyblue')
+    )
+    size_final = np.where(
+        fi_df['trigger'] | (fi_df['CV'] == 0),
+        FINAL_NODE_SIZE, NODE_SIZE
+    )
+
     lower_bounds, upper_bounds = load_domain_bounds(DOMAIN_PATH, PROBLEM_NAME)
-    print(lower_bounds)
-    print(upper_bounds)
     # 距離行列と系列 ID
     W, series_list = compute_distance_matrix(raw_df, DIST_METHOD, SINKHORN_EPS)
 
     # 最適クラスタ数 k の選定
     k_values = range(2, MAX_CLUSTERS+1)
     best_k = select_optimal_k(W, k_values)
-
+    best_k = 50
     # メドイド選択
     medoid_ids = select_medoids(W, series_list, best_k)
     medoid_df = raw_df[raw_df['ID'].isin(medoid_ids)].copy()
@@ -290,35 +327,9 @@ if __name__ == '__main__':
     sinks = [n for n in G.nodes() if G.out_degree(n) == 0]
     medoid_df['is_sink'] = medoid_df.index.isin(sinks)
     medoid_df['feasible'] = medoid_df['CV'] == 0
-
-    dec = 10
-    X_cols2 = [c for c in fi_df.columns if c.startswith('X')]
-    long_keys = (
-        df_.loc[df_['long_edge'], X_cols]
-        .round(dec)
-        .astype(str)
-        .agg('|'.join, axis=1)
-        .unique()
-    )
-
-    # 2) fi_df でも同じキーを生成
-    fi_keys = (
-        fi_df[X_cols2]
-        .round(dec)
-        .astype(str)
-        .agg('|'.join, axis=1)
-    )
-
-    # 3) fi_df['long_edge'] フラグを立てる
-    fi_df['long_edge'] = fi_keys.isin(long_keys)
-
-    colors_final = np.where(
-        fi_df['long_edge'], 'green',
-        np.where(fi_df['CV'] == 0, 'red', 'skyblue')
-    )
-    size_final = np.where(
-        fi_df['long_edge'] | (fi_df['CV'] == 0),
-        FINAL_NODE_SIZE, NODE_SIZE
-    )
+    final = medoid_df[medoid_df['is_sink']].copy()
+    print("final")
+    for i in range(1,len(C_cols)+1):
+        print(final[f"Con_{i}"])
     visualize_pairgrid(medoid_df,fi_df, lower_bounds, upper_bounds, colors_final, size_final)
 

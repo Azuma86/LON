@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 import numpy as np
 import pandas as pd
 import networkx as nx
@@ -44,9 +46,9 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP28'
+problem_name = 'RWMOP20'
 algo = 'local31'
-base_dir = Path('./data09-20-pre')
+base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
 domain_df = pd.read_csv('domain_info.csv')
@@ -82,25 +84,34 @@ for idx, row in data_sorted.iterrows():
 for idx in G.nodes:
     G.nodes[idx]['Xn'] = (G.nodes[idx]['X'] - lower) / (upper - lower)
 
+key_of = {n: tuple(G.nodes[n]['X']) for n in G.nodes}
+groups = defaultdict(list)
+for n, k in key_of.items():
+    groups[k].append(n)
+dup_count = {n: len(groups[key_of[n]]) for n in G.nodes}
+nx.set_node_attributes(G, dup_count, name='count')
+
 edge_info = []          # [(CV, edge_len), …]
 
 for u, v in G.edges():
     cv_u  = G.nodes[u]['CV']
+    count = G.nodes[u]['count']
     x_u   = G.nodes[u]['X']
     x_v   = G.nodes[v]['X']
     dist  = np.linalg.norm(x_u - x_v, ord=2)
 
-    edge_info.append((cv_u, dist))
+    edge_info.append((cv_u, dist, count))
 
 # numpy 配列にして扱いやすく
 edge_info = np.array(edge_info)           # shape = (n_edge, 2)
 CV_vals   = edge_info[:, 0]
 edge_len  = edge_info[:, 1]
+counts = edge_info[:, 2]
 # PMパラメータ
 n_dim = len(lower)
 eta_m = 20
-pm    = 1 / n_dim
-threshold = 0.05
+pm    = 0.9
+threshold = 0.01
 conf_vals = []
 for u, v in G.edges():
     x = G.nodes[u]['X']
@@ -123,12 +134,14 @@ plt.figure(figsize=(8, 6))
 # 非近傍（赤）
 plt.scatter(edge_len[~is_neighbor],
             CV_vals[~is_neighbor],
-            c='red',  s=10, alpha=0.7,
+            #counts[~is_neighbor],
+            c='red',  s=10, alpha=0.6,
             label=f'Non-neighbor (C < {threshold})')
 # 近傍（青）
 plt.scatter(edge_len[is_neighbor],
             CV_vals[is_neighbor],
-            c='blue', s=10, alpha=0.7,
+            #counts[is_neighbor],
+            c='blue', s=10, alpha=0.6,
             label=f'Neighbor (C > {threshold})')
 
 plt.xlabel("Edge Length")

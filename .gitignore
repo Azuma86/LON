@@ -1,4 +1,10 @@
 .idea/
 data09-20-pre/
 data09-20/
+feasible_ratio/
+feasible_ratio_each/
 .DS_Store
+.Rproj.user
+.RData
+.Rhistory
+LONs.Rproj

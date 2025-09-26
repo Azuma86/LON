@@ -13,8 +13,8 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP22'
-algo = 'local31'
+problem_name = 'RWMOP28'
+algo = 'localLHS'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
@@ -52,7 +52,6 @@ for u, v in G.edges():
     x_u   = G.nodes[u]['X']
     x_v   = G.nodes[v]['X']
     dist  = np.linalg.norm(x_u - x_v, ord=2)
-
     edge_info.append((cv_u, dist))
 
 # numpy 配列にして扱いやすく
@@ -78,7 +77,7 @@ plt.grid(alpha=0.3)
 plt.yscale('log')
 #plt.xlim(-0.5,15.5)
 
-plt.xticks(np.arange(0, 141, 20))
-plt.ylim(1e-3, 1e6)
+plt.xticks(np.arange(0, 16, 1))
+#plt.ylim(1e-9, 1e1)
 plt.tight_layout()
 plt.show()

@@ -59,4 +59,4 @@ def plot_feasible_ratio(filename, num_trials=21):
 if __name__ == "__main__":
     # 例として "RWMOP_SR.csv" というファイルを読み込み，
     # 21回試行分の平均をプロットする
-    plot_feasible_ratio("gomi/feasible_ratio/RWMOP20_SP.csv", num_trials=21)
+    plot_feasible_ratio("feasible_ratio/RWMOP20_SP.csv", num_trials=21)

@@ -15,8 +15,8 @@ plt.rcParams["font.family"] = "DejaVu Serif"
 plt.rcParams["font.size"] = 18
 
 # Problem settings
-problem_name = 'RWMOP20'
-algo = 'local31'
+problem_name = 'RWMOP28'
+algo = 'localLHS'
 base_dir = Path('../data09-20-pre')
 csv_path = base_dir / f"{problem_name}_{algo}.csv"
 assert csv_path.exists(), f"CSV file not found: {csv_path}"
@@ -25,6 +25,7 @@ assert csv_path.exists(), f"CSV file not found: {csv_path}"
 # 1. Load data and compute CV
 # ----------------------------------------------------------------
 data = pd.read_csv(csv_path)
+num_ini = np.max(data['ID'])
 X_cols = [c for c in data.columns if c.startswith('X_')]
 con_cols = [c for c in data.columns if c.startswith('Con_')]
 n_dim = len(X_cols)
@@ -46,42 +47,44 @@ for idx, row in data_sorted.iterrows():
         if (prev['ID']==row['ID']) and (row['Gen']==prev['Gen']+1):
             G.add_edge(idx-1, idx)
 
-
-edge_lengths = []
+key_of = {n: tuple(G.nodes[n]['X']) for n in G.nodes}
+groups = defaultdict(list)
+for n, k in key_of.items():
+    groups[k].append(n)
+dup_count = {n: len(groups[key_of[n]]) for n in G.nodes}
+nx.set_node_attributes(G, dup_count, name='count')
+edge_info = []          # [(CV, edge_len), …]
 for u, v in G.edges():
-    x_u = G.nodes[u]['X']
-    x_v = G.nodes[v]['X']
-    # ユークリッド距離
-    dist = np.linalg.norm(x_u - x_v,ord=2)
+    cv_u  = G.nodes[u]['CV']
+    count = G.nodes[u]['count']
+    x_u   = G.nodes[u]['X']
+    x_v   = G.nodes[v]['X']
+    dist  = np.linalg.norm(x_u - x_v, ord=2)
 
-    edge_lengths.append(dist)
-edge_lengths = np.array(edge_lengths)
+    edge_info.append((cv_u, dist, count))
 
-print(np.max(edge_lengths))
-#edge_lengths[edge_lengths<1e-12] = 1e-12
-#log_lengths = np.log10(edge_lengths)
-q1 = np.percentile(edge_lengths, 25)
-q3 = np.percentile(edge_lengths, 75)
-iqr = q3 - q1
-lower_bound = q1 - 1.5 * iqr
-upper_bound = q3 + 1.5 * iqr
+# numpy 配列にして扱いやすく
+edge_info = np.array(edge_info)           # shape = (n_edge, 2)
+CV_vals   = edge_info[:, 0]
+edge_len  = edge_info[:, 1]
+count = edge_info[:, 2]/num_ini
 
-# 2. 外れ値を除外したデータ
-filtered_lengths = edge_lengths[(edge_lengths >= lower_bound) & (edge_lengths <= upper_bound)]
-# 2) ヒストグラム描画
-plt.figure(figsize=(8,6))
-n, bins, patches = plt.hist(
-    edge_lengths[(edge_lengths >=  1) ],
-    #edge_lengths,
-    #filtered_lengths,
-    bins='auto',
-    color='steelblue',
-    edgecolor='black',
-    alpha=0.8
-)
-tic = np.linspace(2, 4, 4)
-#plt.xticks(ticks=tic)
-plt.grid(axis='y', alpha=0.3)
-#plt.ylim(0,1600)
+
+q1, q3 = np.percentile(edge_len, [25, 75])
+iqr     = q3 - q1
+lower, upper = q1 - 1.5 * iqr, q3 + 1.5 * iqr
+mask    = (edge_len >= lower) & (edge_len <= upper)
+
+
+
+plt.figure(figsize=(8, 6))
+plt.scatter(edge_len, count, s=10, alpha=0.7)   # 点サイズや透明度はお好みで
+plt.ylabel("count")
+plt.xlabel("Edge Length")
+plt.grid(alpha=0.3)
+#plt.xlim(-0.5,15.5)
+
+#plt.xticks(np.arange(0, 16, 1))
+#plt.ylim(1e-4, 1e3)
 plt.tight_layout()
 plt.show()
